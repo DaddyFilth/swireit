@@ -212,7 +212,8 @@ async function processWithAISec(transcript: string, context: any) {
   }
 
   const controller = new AbortController();
-  const timeoutMs = Number(process.env.AISEC_TIMEOUT_MS) || 5000;
+  const parsedTimeout = Number(process.env.AISEC_TIMEOUT_MS);
+  const timeoutMs = Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : 5000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
@@ -235,7 +236,7 @@ async function processWithAISec(transcript: string, context: any) {
       response?: string;
       action?: string;
     };
-    if (typeof data === 'object' && data && !Array.isArray(data) && typeof data.response === 'string') {
+    if (isValidAISecResponse(data)) {
       const intent = typeof data.intent === 'string' ? data.intent : undefined;
       const action = typeof data.action === 'string' ? data.action : undefined;
       return {
@@ -255,6 +256,10 @@ async function processWithAISec(transcript: string, context: any) {
   }
 
   return null;
+}
+
+function isValidAISecResponse(data: unknown): data is { response: string; intent?: string; action?: string } {
+  return !!data && typeof data === 'object' && !Array.isArray(data) && typeof (data as { response?: unknown }).response === 'string';
 }
 
 function processWithRules(transcript: string) {
