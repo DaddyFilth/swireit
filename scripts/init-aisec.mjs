@@ -9,6 +9,7 @@ const SWIREIT_KEYS = [
   'SWIREIT_TWIML_URL',
   'SWIREIT_VALIDATE_WEBHOOKS'
 ];
+const HEALTH_CHECK_TIMEOUT_MS = 3000;
 
 function loadEnvFile(filePath) {
   if (!existsSync(filePath)) {
@@ -30,11 +31,20 @@ function loadEnvFile(filePath) {
     }
     const key = trimmed.slice(0, equalsIndex).trim();
     let value = trimmed.slice(equalsIndex + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
+    if (value.startsWith('"') || value.startsWith("'")) {
+      const quote = value[0];
+      const endIndex = value.indexOf(quote, 1);
+      if (endIndex >= 0) {
+        value = value.slice(1, endIndex);
+      } else {
+        console.warn(`⚠️  Unterminated quote for ${key} in ${filePath}. Check for matching quotes.`);
+        value = value.slice(1);
+      }
+    } else {
+      const commentIndex = value.indexOf('#');
+      if (commentIndex >= 0) {
+        value = value.slice(0, commentIndex).trim();
+      }
     }
     env[key] = value;
   }
@@ -61,7 +71,7 @@ function ensureDirectoryExists(dirPath) {
 
 function updateEnvFile(filePath, values) {
   const existingContents = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
-  const lines = existingContents ? existingContents.split(/\r?\n/) : [];
+  const lines = existingContents.split(/\r?\n/);
   const seen = new Set();
   const updatedLines = lines.map((line) => {
     const match = line.match(/^\s*([A-Za-z0-9_]+)\s*=/);
@@ -78,39 +88,44 @@ function updateEnvFile(filePath, values) {
     }
   }
 
-  const normalized = updatedLines
-    .filter((line, index) => index < updatedLines.length - 1 || line.trim() !== '')
-    .join('\n')
-    .replace(/\n*$/, '\n');
+  while (updatedLines.length && updatedLines[updatedLines.length - 1].trim() === '') {
+    updatedLines.pop();
+  }
+  const normalized = `${updatedLines.join('\n')}\n`;
   writeFileSync(filePath, normalized, 'utf8');
 }
 
-async function ensureSwireitRunning(env) {
+async function verifySwireitRunning(env) {
   const spaceUrl = env.SWIREIT_SPACE_URL;
   if (!spaceUrl) {
     console.warn('⚠️  SWIREIT_SPACE_URL is not set; unable to verify Swireit is running.');
     return;
   }
 
-  let baseUrl = spaceUrl.trim();
-  if (!baseUrl) {
+  const trimmedUrl = spaceUrl.trim();
+  if (!trimmedUrl) {
     console.warn('⚠️  SWIREIT_SPACE_URL is empty; unable to verify Swireit is running.');
     return;
-  }
-  if (!/^https?:\/\//i.test(baseUrl)) {
-    baseUrl = `https://${baseUrl}`;
   }
 
   let healthUrl;
   try {
-    healthUrl = new URL('/api/health', baseUrl).toString();
+    const targetUrl = trimmedUrl.startsWith('http')
+      ? trimmedUrl
+      : (/^(localhost|127\.0\.0\.1|(?:\[::1\]|::1))(:\d+)?$/i.test(trimmedUrl)
+        ? `http://${trimmedUrl}`
+        : `https://${trimmedUrl}`);
+    if (!trimmedUrl.startsWith('http') && targetUrl.startsWith('https://')) {
+      console.warn(`⚠️  Defaulting to HTTPS for SWIREIT_SPACE_URL (${trimmedUrl}).`);
+    }
+    healthUrl = new URL('/api/health', targetUrl).toString();
   } catch (error) {
     console.warn(`⚠️  Invalid SWIREIT_SPACE_URL (${spaceUrl}); unable to verify Swireit is running.`);
     return;
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 3000);
+  const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
 
   try {
     const response = await fetch(healthUrl, { signal: controller.signal });
@@ -119,7 +134,10 @@ async function ensureSwireitRunning(env) {
     }
     console.log(`✅ Swireit is running (${healthUrl}).`);
   } catch (error) {
-    console.error(`🚨 Start Swireit before initializing AISec. Health check failed for ${healthUrl}.`);
+    const details = error instanceof Error ? error.message : String(error);
+    console.error(
+      `🚨 Start Swireit before initializing AISec. Health check failed for ${healthUrl}. (${details})`
+    );
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -128,23 +146,22 @@ async function ensureSwireitRunning(env) {
 
 async function main() {
   const rootDir = process.cwd();
-  const aisecDir = process.env.AISEC_DIR || process.env.AISEC_PATH || '../aisec';
+  const aisecDir = process.env.AISEC_DIR || '../aisec';
   const resolvedAisecDir = resolve(rootDir, aisecDir);
 
   ensureDirectoryExists(resolvedAisecDir);
 
   const swireitEnv = resolveSwireitEnv(rootDir);
-  const values = SWIREIT_KEYS.reduce((acc, key) => {
-    acc[key] = swireitEnv[key] ?? '';
-    return acc;
-  }, {});
+  const values = Object.fromEntries(
+    SWIREIT_KEYS.map((key) => [key, swireitEnv[key] ?? ''])
+  );
 
   const missing = SWIREIT_KEYS.filter((key) => !swireitEnv[key]);
   if (missing.length) {
     console.warn(`⚠️  Missing Swireit values: ${missing.join(', ')}`);
   }
 
-  await ensureSwireitRunning(swireitEnv);
+  await verifySwireitRunning(swireitEnv);
 
   const targetFile = join(resolvedAisecDir, '.env.local');
   updateEnvFile(targetFile, values);
