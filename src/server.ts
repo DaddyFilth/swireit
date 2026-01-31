@@ -203,8 +203,17 @@ async function processWithAISec(transcript: string, context: any) {
     return null;
   }
 
+  let aisecLabel = 'AISec';
+  try {
+    const parsedUrl = new URL(aisecUrl);
+    aisecLabel = `${parsedUrl.origin}${parsedUrl.pathname}`;
+  } catch {
+    // Keep default label for invalid URLs.
+  }
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeoutMs = 5000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(aisecUrl, {
@@ -227,14 +236,20 @@ async function processWithAISec(transcript: string, context: any) {
       action?: string;
     };
     if (data && typeof data.response === 'string') {
+      const intent = typeof data.intent === 'string' ? data.intent : undefined;
+      const action = typeof data.action === 'string' ? data.action : undefined;
       return {
-        intent: data.intent ?? 'aisec',
+        intent: intent ?? 'aisec',
         response: data.response,
-        action: data.action ?? 'respond'
+        action: action ?? 'respond'
       };
     }
   } catch (error) {
-    console.error(`AISec integration failed for ${aisecUrl}:`, error);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`AISec request timed out after ${timeoutMs}ms (${aisecLabel}).`);
+    } else {
+      console.error(`AISec integration failed for ${aisecLabel}:`, error);
+    }
   } finally {
     clearTimeout(timeout);
   }
