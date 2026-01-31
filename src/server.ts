@@ -1,4 +1,5 @@
 import express from 'express';
+import fetch from 'node-fetch';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';
@@ -188,9 +189,83 @@ app.post('/api/ai/process', async (req, res) => {
 });
 
 async function processWithAI(transcript: string, context: any) {
+  const aisecResponse = await processWithAISec(transcript, context);
+  if (aisecResponse) {
+    return aisecResponse;
+  }
+
+  return processWithRules(transcript);
+}
+
+async function processWithAISec(transcript: string, context: any) {
+  const aisecUrl = process.env.AISEC_API_URL;
+  if (!aisecUrl) {
+    return null;
+  }
+
+  let aisecLabel = 'AISec';
+  try {
+    const parsedUrl = new URL(aisecUrl);
+    aisecLabel = `${parsedUrl.origin}${parsedUrl.pathname}`;
+  } catch {
+    // Keep default label for invalid URLs.
+  }
+
+  const controller = new AbortController();
+  const parsedTimeout = Number(process.env.AISEC_TIMEOUT_MS);
+  const timeoutMs = Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : 5000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(aisecUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(process.env.AISEC_API_KEY ? { Authorization: `Bearer ${process.env.AISEC_API_KEY}` } : {})
+      },
+      body: JSON.stringify({ transcript, context }),
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`AISec request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as {
+      intent?: string;
+      response?: string;
+      action?: string;
+    };
+    if (isValidAISecResponse(data)) {
+      const intent = typeof data.intent === 'string' ? data.intent : undefined;
+      const action = typeof data.action === 'string' ? data.action : undefined;
+      return {
+        intent: intent ?? 'aisec',
+        response: data.response,
+        action: action ?? 'respond'
+      };
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`AISec request timed out after ${timeoutMs}ms (${aisecLabel}).`);
+    } else {
+      console.error(`AISec integration failed for ${aisecLabel}:`, error);
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  return null;
+}
+
+function isValidAISecResponse(data: unknown): data is { response: string; intent?: string; action?: string } {
+  return !!data && typeof data === 'object' && !Array.isArray(data) && typeof (data as { response?: unknown }).response === 'string';
+}
+
+function processWithRules(transcript: string) {
   // Simple keyword-based responses (free alternative to paid AI)
   const lowerTranscript = transcript.toLowerCase();
-  
+
   // Check for transfer/forward first (more specific)
   if (lowerTranscript.includes('transfer') || lowerTranscript.includes('forward')) {
     return {
@@ -199,7 +274,7 @@ async function processWithAI(transcript: string, context: any) {
       action: 'request_transfer_target'
     };
   }
-  
+
   if (lowerTranscript.includes('help')) {
     return {
       intent: 'help',
@@ -207,7 +282,7 @@ async function processWithAI(transcript: string, context: any) {
       action: 'provide_help'
     };
   }
-  
+
   if (lowerTranscript.includes('hello') || lowerTranscript.includes('hi')) {
     return {
       intent: 'greeting',
@@ -215,7 +290,7 @@ async function processWithAI(transcript: string, context: any) {
       action: 'none'
     };
   }
-  
+
   return {
     intent: 'unknown',
     response: 'I understand. Could you please provide more details?',
