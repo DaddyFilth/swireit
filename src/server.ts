@@ -298,8 +298,11 @@ function processWithRules(transcript: string) {
   };
 }
 
-const parsedPort = Number(process.env.PORT);
-const PORT = Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : 3000;
+const DEFAULT_PORT = 3000;
+const MAX_PORT = 65535;
+const IPV4_ALL_INTERFACES = '0.0.0.0';
+const IPV6_ALL_INTERFACES = '::';
+const PORT = resolvePort(process.env.PORT);
 
 server.on('error', (error) => {
   console.error('🚨 Server error:', error);
@@ -311,14 +314,28 @@ wss.on('error', (error) => {
 
 server.listen(PORT, () => {
   const address = server.address();
-  const resolvedPort = typeof address === 'object' && address ? address.port : PORT;
-  const resolvedHost = typeof address === 'object' && address ? address.address : 'localhost';
-  const displayHost = resolvedHost === '::' ? 'localhost' : resolvedHost;
-  const url = typeof address === 'string' ? address : `http://${displayHost}:${resolvedPort}`;
+  const isAddressObject = typeof address === 'object' && address !== null;
+  const resolvedPort = isAddressObject ? address.port : PORT;
+  const resolvedHost = isAddressObject ? address.address : 'localhost';
+  const isIpv6 = isAddressObject ? address.family === 'IPv6' : false;
+  const formattedHost = isIpv6 ? `[${resolvedHost}]` : resolvedHost;
+  const url = typeof address === 'string' ? `unix:${address}` : `http://${formattedHost}:${resolvedPort}`;
 
   console.log(`🚀 Swireit server running at ${url}`);
-  console.log('🟢 Server will keep running until you press Ctrl+C');
+  if (resolvedHost === IPV4_ALL_INTERFACES || resolvedHost === IPV6_ALL_INTERFACES) {
+    console.log(`🌐 Listening on all interfaces. Local access: http://localhost:${resolvedPort}`);
+  }
+  console.log('🟢 Server will keep running until stopped');
   console.log(`📞 WebSocket signaling ready`);
   console.log(`🤖 AI agent tools enabled`);
   console.log(`💰 100% Free and Open Source`);
 });
+
+function resolvePort(rawPort: string | undefined) {
+  const trimmedPort = rawPort?.trim();
+  if (!trimmedPort) {
+    return DEFAULT_PORT;
+  }
+  const parsedPort = Number.parseInt(trimmedPort, 10);
+  return Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= MAX_PORT ? parsedPort : DEFAULT_PORT;
+}
