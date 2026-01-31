@@ -212,7 +212,7 @@ async function processWithAISec(transcript: string, context: any) {
   }
 
   const controller = new AbortController();
-  const timeoutMs = Number.parseInt(process.env.AISEC_TIMEOUT_MS ?? '', 10) || 5000;
+  const timeoutMs = Number(process.env.AISEC_TIMEOUT_MS) || 5000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
@@ -227,7 +227,7 @@ async function processWithAISec(transcript: string, context: any) {
     });
 
     if (!response.ok) {
-      throw new Error(`AISec request failed: ${response.status}`);
+      throw new Error(`AISec request failed: ${response.status} ${response.statusText}`);
     }
 
     const data = (await response.json()) as {
@@ -235,7 +235,7 @@ async function processWithAISec(transcript: string, context: any) {
       response?: string;
       action?: string;
     };
-    if (data && typeof data === 'object' && typeof data.response === 'string') {
+    if (data && data !== null && !Array.isArray(data) && typeof data === 'object' && typeof data.response === 'string') {
       const intent = typeof data.intent === 'string' ? data.intent : undefined;
       const action = typeof data.action === 'string' ? data.action : undefined;
       return {
