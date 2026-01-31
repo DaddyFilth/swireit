@@ -235,7 +235,7 @@ async function processWithAISec(transcript: string, context: any) {
       response?: string;
       action?: string;
     };
-    if (data && data !== null && !Array.isArray(data) && typeof data === 'object' && typeof data.response === 'string') {
+    if (typeof data === 'object' && data && !Array.isArray(data) && typeof data.response === 'string') {
       const intent = typeof data.intent === 'string' ? data.intent : undefined;
       const action = typeof data.action === 'string' ? data.action : undefined;
       return {
