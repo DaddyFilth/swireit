@@ -122,6 +122,20 @@ You can integrate free AI services:
 - **Local Models** - Run models like Llama locally
 - **Rasa** - Open-source conversational AI
 
+### AISec (AI Secretary) Integration
+
+Swireit can forward AI processing to the AISec backend (https://github.com/DaddyFilth/aisec) for advanced call screening.
+
+1. Start the AISec backend server.
+2. Add the following to your `.env` file:
+
+```env
+AISEC_API_URL=http://localhost:8080/api/ai/process
+AISEC_API_KEY=your_aisec_api_key
+```
+
+Swireit will call AISec when `AISEC_API_URL` is set, and fall back to the built-in rules if AISec is unavailable.
+
 Example integration in `src/server.ts`:
 
 ```typescript

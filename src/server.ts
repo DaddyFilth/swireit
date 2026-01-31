@@ -1,4 +1,5 @@
 import express from 'express';
+import fetch from 'node-fetch';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';
@@ -188,9 +189,57 @@ app.post('/api/ai/process', async (req, res) => {
 });
 
 async function processWithAI(transcript: string, context: any) {
+  const aisecResponse = await processWithAISec(transcript, context);
+  if (aisecResponse) {
+    return aisecResponse;
+  }
+
+  return processWithRules(transcript);
+}
+
+async function processWithAISec(transcript: string, context: any) {
+  const aisecUrl = process.env.AISEC_API_URL;
+  if (!aisecUrl) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(aisecUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(process.env.AISEC_API_KEY ? { Authorization: `Bearer ${process.env.AISEC_API_KEY}` } : {})
+      },
+      body: JSON.stringify({ transcript, context })
+    });
+
+    if (!response.ok) {
+      throw new Error(`AISec request failed: ${response.status}`);
+    }
+
+    const data = (await response.json()) as {
+      intent?: string;
+      response?: string;
+      action?: string;
+    };
+    if (data && typeof data.response === 'string') {
+      return {
+        intent: data.intent ?? 'aisec',
+        response: data.response,
+        action: data.action ?? 'respond'
+      };
+    }
+  } catch (error) {
+    console.error('AISec integration failed:', error);
+  }
+
+  return null;
+}
+
+function processWithRules(transcript: string) {
   // Simple keyword-based responses (free alternative to paid AI)
   const lowerTranscript = transcript.toLowerCase();
-  
+
   // Check for transfer/forward first (more specific)
   if (lowerTranscript.includes('transfer') || lowerTranscript.includes('forward')) {
     return {
@@ -199,7 +248,7 @@ async function processWithAI(transcript: string, context: any) {
       action: 'request_transfer_target'
     };
   }
-  
+
   if (lowerTranscript.includes('help')) {
     return {
       intent: 'help',
@@ -207,7 +256,7 @@ async function processWithAI(transcript: string, context: any) {
       action: 'provide_help'
     };
   }
-  
+
   if (lowerTranscript.includes('hello') || lowerTranscript.includes('hi')) {
     return {
       intent: 'greeting',
@@ -215,7 +264,7 @@ async function processWithAI(transcript: string, context: any) {
       action: 'none'
     };
   }
-  
+
   return {
     intent: 'unknown',
     response: 'I understand. Could you please provide more details?',
