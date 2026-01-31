@@ -128,12 +128,12 @@ Example integration in `src/server.ts`:
 import fetch from 'node-fetch';
 
 async function processWithAI(transcript: string) {
-  // Example: Use Hugging Face free API
+  // Example: Use Hugging Face free API (no cost, no API key required for basic usage)
   const response = await fetch(
     'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill',
     {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer YOUR_FREE_TOKEN' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ inputs: transcript })
     }
   );

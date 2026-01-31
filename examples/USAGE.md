@@ -214,8 +214,8 @@ async function processWithLocalAI(transcript: string) {
 
 See `docker-compose.yml` for easy deployment with Docker.
 
-For cloud deployment (all have free tiers):
-- **Heroku**: Free tier available
-- **Railway**: Free tier available  
-- **Render**: Free tier available
-- **Fly.io**: Free tier available
+For cloud deployment (with free tiers):
+- **Railway**: Generous free tier available  
+- **Render**: 750 hours/month free
+- **Fly.io**: Free tier with 3 VMs
+- **Vercel**: Free for hobby projects (with serverless functions)
