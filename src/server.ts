@@ -212,7 +212,7 @@ async function processWithAISec(transcript: string, context: any) {
   }
 
   const controller = new AbortController();
-  const timeoutMs = 5000;
+  const timeoutMs = Number.parseInt(process.env.AISEC_TIMEOUT_MS ?? '', 10) || 5000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
@@ -235,7 +235,7 @@ async function processWithAISec(transcript: string, context: any) {
       response?: string;
       action?: string;
     };
-    if (data && typeof data.response === 'string') {
+    if (data && typeof data === 'object' && typeof data.response === 'string') {
       const intent = typeof data.intent === 'string' ? data.intent : undefined;
       const action = typeof data.action === 'string' ? data.action : undefined;
       return {

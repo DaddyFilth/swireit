@@ -132,6 +132,7 @@ Swireit can forward AI processing to the AISec backend (https://github.com/Daddy
 ```env
 AISEC_API_URL=http://localhost:8080/api/ai/process
 AISEC_API_KEY=your_aisec_api_key
+AISEC_TIMEOUT_MS=5000
 ```
 
 Swireit will call AISec when `AISEC_API_URL` is set, and fall back to the built-in rules if AISec is unavailable.
