@@ -126,14 +126,19 @@ You can integrate free AI services:
 
 Swireit can forward AI processing to the AISec backend (https://github.com/DaddyFilth/aisec) for advanced call screening.
 
-1. Start the AISec backend server.
-2. Add the following to your `.env` file:
+1. Clone and start AISec from the repo:
+   - `git clone https://github.com/DaddyFilth/aisec.git`
+   - `cd aisec`
+   - Follow the AISec README to configure and run the service (the default endpoint is `/api/ai/process`).
+2. Add the following to your `.env` file in this repo:
 
 ```env
 AISEC_API_URL=http://localhost:8080/api/ai/process
 AISEC_API_KEY=your_aisec_api_key
 AISEC_TIMEOUT_MS=5000
 ```
+
+3. Restart Swireit so it picks up the AISec settings.
 
 Swireit will call AISec when `AISEC_API_URL` is set, and fall back to the built-in rules if AISec is unavailable.
 
