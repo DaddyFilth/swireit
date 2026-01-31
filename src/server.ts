@@ -298,10 +298,26 @@ function processWithRules(transcript: string) {
   };
 }
 
-const PORT = process.env.PORT || 3000;
+const parsedPort = Number(process.env.PORT);
+const PORT = Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : 3000;
+
+server.on('error', (error) => {
+  console.error('🚨 Server error:', error);
+});
+
+wss.on('error', (error) => {
+  console.error('🚨 WebSocket server error:', error);
+});
 
 server.listen(PORT, () => {
-  console.log(`🚀 Swireit server running on port ${PORT}`);
+  const address = server.address();
+  const resolvedPort = typeof address === 'object' && address ? address.port : PORT;
+  const resolvedHost = typeof address === 'object' && address ? address.address : 'localhost';
+  const displayHost = resolvedHost === '::' ? 'localhost' : resolvedHost;
+  const url = typeof address === 'string' ? address : `http://${displayHost}:${resolvedPort}`;
+
+  console.log(`🚀 Swireit server running at ${url}`);
+  console.log('🟢 Server will keep running until you press Ctrl+C');
   console.log(`📞 WebSocket signaling ready`);
   console.log(`🤖 AI agent tools enabled`);
   console.log(`💰 100% Free and Open Source`);
