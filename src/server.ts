@@ -203,6 +203,9 @@ async function processWithAISec(transcript: string, context: any) {
     return null;
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
   try {
     const response = await fetch(aisecUrl, {
       method: 'POST',
@@ -210,7 +213,8 @@ async function processWithAISec(transcript: string, context: any) {
         'Content-Type': 'application/json',
         ...(process.env.AISEC_API_KEY ? { Authorization: `Bearer ${process.env.AISEC_API_KEY}` } : {})
       },
-      body: JSON.stringify({ transcript, context })
+      body: JSON.stringify({ transcript, context }),
+      signal: controller.signal
     });
 
     if (!response.ok) {
@@ -230,7 +234,9 @@ async function processWithAISec(transcript: string, context: any) {
       };
     }
   } catch (error) {
-    console.error('AISec integration failed:', error);
+    console.error(`AISec integration failed for ${aisecUrl}:`, error);
+  } finally {
+    clearTimeout(timeout);
   }
 
   return null;
