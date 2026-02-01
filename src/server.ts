@@ -14,6 +14,10 @@ const wss = new WebSocketServer({ server });
 
 // Middleware
 app.use(express.json());
+app.use((req, res, next) => {
+  res.setHeader('murgeheader', 'exists');
+  next();
+});
 app.use(express.static(join(__dirname, '../public')));
 
 // Store active connections
