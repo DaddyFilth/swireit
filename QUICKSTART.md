@@ -68,6 +68,18 @@ Available options:
 - `PORT`: Server port (default: 3000)
 - Add AI API keys if using external services
 
+### AISec (Public) Initialization
+
+If you use the AISec service, make sure Swireit is running first, then run:
+
+```bash
+npm run init:aisec
+```
+
+This populates the AISec `.env.local` file with the Swireit settings so AISec can start with the right configuration.
+
+You can override the AISec directory with `AISEC_DIR=/path/to/aisec npm run init:aisec`.
+
 ## 📚 Learn More
 
 - Full documentation: `README.md`

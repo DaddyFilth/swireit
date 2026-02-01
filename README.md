@@ -124,7 +124,7 @@ You can integrate free AI services:
 
 ### AISec (AI Secretary) Integration
 
-Swireit can forward AI processing to the AISec backend (https://github.com/DaddyFilth/aisec) for advanced call screening.
+Swireit can forward AI processing to the AISec backend (https://github.com/DaddyFilth/aisec) for advanced call screening. AISec is public and can be initialized from this repo.
 
 1. Clone and start AISec from the repo:
    - `git clone https://github.com/DaddyFilth/aisec.git`
@@ -136,9 +136,23 @@ Swireit can forward AI processing to the AISec backend (https://github.com/Daddy
 AISEC_API_URL=http://localhost:8080/api/ai/process
 AISEC_API_KEY=your_aisec_api_key
 AISEC_TIMEOUT_MS=5000
+SWIREIT_PROJECT_ID=your_swireit_project_id
+SWIREIT_API_TOKEN=your_swireit_api_token
+SWIREIT_SPACE_URL=your-space.swireit.com
+SWIREIT_CALLER_ID=+15551231234
+SWIREIT_TWIML_URL=your_swireit_twiml_url
+SWIREIT_VALIDATE_WEBHOOKS=true
 ```
 
-3. Restart Swireit so it picks up the AISec settings.
+3. Ensure Swireit is running, then initialize AISec with the Swireit settings:
+
+```bash
+npm run init:aisec
+```
+
+This copies the Swireit settings into the AISec `.env.local` file so AISec can start with your Swireit configuration. Swireit should already be running before you run the init step. You can override the AISec location with `AISEC_DIR=/path/to/aisec npm run init:aisec`.
+
+4. Restart AISec so it picks up the updated `.env.local`.
 
 Swireit will call AISec when `AISEC_API_URL` is set, and fall back to the built-in rules if AISec is unavailable.
 

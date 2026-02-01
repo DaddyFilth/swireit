@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
+    "init:aisec": "node scripts/init-aisec.mjs",
     "test": "echo \"No tests yet\" && exit 0"
   },
   "keywords": [
